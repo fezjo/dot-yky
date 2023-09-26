@@ -11,3 +11,10 @@ It handles around 10k dots and there is large room for optimization.
 You can pause and restart the simulation by pressing `p` and `r` respectively.
 
 ![Example](example.png)
+
+## Instructions
+
+```bash
+# install pygame and then simply
+python3 touching_circles.py
+```
