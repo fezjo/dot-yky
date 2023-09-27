@@ -145,9 +145,8 @@ def modify_circles():
                     (now - circle.creation_time)
                     / (circle.maturity_time - circle.creation_time),
                 )
-                circle.render_radius = circle.radius * (
-                    stage if circle.instability == 1 else 1 - stage
-                )
+                stage = (stage if circle.instability == 1 else 1 - stage) ** 0.5
+                circle.render_radius = circle.radius * stage
                 if now >= circle.maturity_time:
                     if circle.instability == -1:
                         circles.remove(circle)
