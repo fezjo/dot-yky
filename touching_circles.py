@@ -137,18 +137,21 @@ def modify_circles():
 
         now = time.time()
         for circle in unstable_circles:
-            stage = min(
-                1,
-                (now - circle.creation_time)
-                / (circle.maturity_time - circle.creation_time),
-            )
-            circle.render_radius = circle.radius * (
-                stage if circle.instability == 1 else 1 - stage
-            )
-            if circle.instability != USER_INSTABILITY and now >= circle.maturity_time:
-                if circle.instability == -1:
-                    circles.remove(circle)
-                circle.instability = 0
+            if circle.instability == USER_INSTABILITY:
+                circle.render_radius = circle.radius
+            else:
+                stage = min(
+                    1,
+                    (now - circle.creation_time)
+                    / (circle.maturity_time - circle.creation_time),
+                )
+                circle.render_radius = circle.radius * (
+                    stage if circle.instability == 1 else 1 - stage
+                )
+                if now >= circle.maturity_time:
+                    if circle.instability == -1:
+                        circles.remove(circle)
+                    circle.instability = 0
         unstable_circles = {c for c in unstable_circles if c.instability}
         time.sleep(max(0, min(ADD_TIMEOUT, REMOVE_TIMEOUT) - (time.time() - now)))
 
@@ -157,8 +160,11 @@ def pygame_loop():
     global circles, unstable_circles
     global last_added, paused
 
-    user_circle: Circle = Circle(Pos(0, 0), 0)
+    NONE_CIRCLE = Circle(Pos(0, 0), 0)
+    user_circle: Circle = NONE_CIRCLE
     while True:
+        user_circle.radius = abs(user_circle.center - Pos(*pygame.mouse.get_pos()))
+        user_circle.maturity_time = time.time() + 10
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -169,7 +175,10 @@ def pygame_loop():
                 circles.add(user_circle)
                 unstable_circles.add(user_circle)
             elif event.type == pygame.MOUSEBUTTONUP:
-                user_circle.instability = 0
+                user_circle.instability = 1
+                user_circle.render_radius = user_circle.radius
+                user_circle.maturity_time = time.time()
+                user_circle = NONE_CIRCLE
             elif event.type == pygame.KEYUP:
                 if event.key == pygame.K_r:
                     circles = set()
@@ -178,8 +187,6 @@ def pygame_loop():
                 if event.key == pygame.K_p:
                     paused = not paused
                     last_added = time.time()
-
-        user_circle.radius = abs(user_circle.center - Pos(*pygame.mouse.get_pos()))
 
         screen.fill((200, 220, 250))
         for circle in tuple(circles):
