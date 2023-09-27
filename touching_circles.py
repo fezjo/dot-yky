@@ -9,6 +9,8 @@ import threading
 
 SHOW_COMPONENTS = True
 
+Color = tuple[int, int, int]
+
 
 @dataclass
 class Pos:
@@ -28,7 +30,7 @@ class Pos:
         return self.x**2 + self.y**2
 
 
-def random_color() -> tuple[int, int, int]:
+def random_color() -> Color:
     return random.randint(120, 160), random.randint(100, 200), random.randint(160, 255)
 
 
@@ -36,7 +38,7 @@ def random_color() -> tuple[int, int, int]:
 class Circle:
     center: Pos
     radius: float
-    color: tuple[int, int, int] = field(default_factory=random_color)
+    color: Color = field(default_factory=random_color)
     instability: int = 0
     creation_time: float = field(init=False)
     maturity_time: float = field(init=False)
