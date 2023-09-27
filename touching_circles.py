@@ -42,11 +42,10 @@ class Circle:
     instability: int = 0
     creation_time: float = field(init=False)
     maturity_time: float = field(init=False)
-    render_radius: float = field(init=False)
+    render_radius: float = 0
     id: int = field(init=False, default_factory=lambda: random.randint(0, 2**32))
 
     def __post_init__(self):
-        self.render_radius = self.radius
         self.setup_time()
 
     def __repr__(self):
@@ -136,6 +135,7 @@ def modify_circles():
                     unstable_circles.add(circle)
                 last_removed += REMOVE_TIMEOUT
 
+        now = time.time()
         for circle in unstable_circles:
             stage = min(
                 1,
