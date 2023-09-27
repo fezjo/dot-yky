@@ -95,6 +95,16 @@ last_added, last_removed = time.time(), time.time()
 paused = False
 
 
+def draw_int_circle(center: Pos, radius: float, color: Color, stroke: float = 0):
+    rect = pygame.Rect(
+        math.floor(center.x - radius),
+        math.floor(center.y - radius),
+        math.ceil(radius * 2),
+        math.ceil(radius * 2),
+    )
+    pygame.draw.ellipse(screen, color, rect, math.ceil(stroke))
+
+
 def modify_circles():
     global circles, unstable_circles
     global last_added, last_removed, paused
@@ -171,14 +181,8 @@ def pygame_loop():
 
         screen.fill((200, 220, 250))
         for circle in tuple(circles):
-            r = circle.render_radius
-            rect = pygame.Rect(
-                math.floor(circle.center.x - r),
-                math.floor(circle.center.y - r),
-                math.ceil(r * 2),
-                math.ceil(r * 2),
-            )
-            pygame.draw.ellipse(screen, circle.color, rect)
+            draw_int_circle(circle.center, circle.render_radius, circle.color)
+            draw_int_circle(circle.center, circle.radius, circle.color, 1)
 
         pygame.display.flip()
         clock.tick(FPS)
