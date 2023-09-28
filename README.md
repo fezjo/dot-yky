@@ -6,11 +6,12 @@ Dots appear and disappear. They try to be as big as possible, so most of the dot
 
 It reminds me of a civilization simulation, where the dots are emerging and disappearing tribes and color signifies the tribe's loyalty.
 
-It handles around 10k dots and there is large room for optimization.
+It handles around 20k dots and there is large room for optimization.
 
 You can pause and restart the simulation by pressing `p` and `r` respectively.
 
-![Example](example.png)
+![Example](media/example1.png)
+![Example](media/example2.png)
 
 ## Instructions
 
