@@ -7,9 +7,20 @@ from dataclasses import dataclass, field
 from typing import Iterable
 import threading
 
+FPS = 60
 SHOW_COMPONENTS = True
+ADD_TIMEOUT, REMOVE_TIMEOUT = 1 / 32, 1 / 6
+
+
+pygame.init()
+W, H = pygame.display.Info().current_w, pygame.display.Info().current_h
+screen = pygame.display.set_mode((W, H))
+pygame.display.set_caption("Touching circles")
+clock = pygame.time.Clock()
+MAX_RADIUS = min(W, H) // 3
 
 Color = tuple[int, int, int]
+BG_COLOR: Color = (200, 220, 250)
 
 
 @dataclass
@@ -43,7 +54,7 @@ class Circle:
     creation_time: float = field(init=False)
     maturity_time: float = field(init=False)
     render_radius: float = 0
-    id: int = field(init=False, default_factory=lambda: random.randint(0, 2**32))
+    id: int = field(init=False, default_factory=lambda: random.randint(0, 1 << 63))
 
     def __post_init__(self):
         self.setup_time()
@@ -52,7 +63,7 @@ class Circle:
         return f"Circ({self.center}, {round(self.radius)})"
 
     def __hash__(self):
-        return hash((self.id, self.center.x, self.center.y))
+        return self.id
 
     def setup_time(self):
         self.creation_time = time.time()
@@ -60,17 +71,25 @@ class Circle:
 
 
 def add_circle(
-    circles: Iterable[Circle], center: Pos, bounds: Pos, max_radius: float = 100
+    circles: Iterable[Circle], center: Pos, bounds: Pos, max_radius: float | None = None
 ) -> Circle | None:
+    try:
+        pixel = screen.get_at((round(center.x), round(center.y)))
+        if pixel[:3] != BG_COLOR:
+            return None
+    except:
+        pass
     max_radius = min(
-        max_radius, center.x, center.y, bounds.x - center.x, bounds.y - center.y
+        (center.x, center.y, bounds.x - center.x, bounds.y - center.y)
+        + ((max_radius,) if max_radius else ())
     )
     closest: tuple[float, Circle | None] = (max_radius, None)
     for circle in circles:
         dist = abs(circle.center - center) - circle.radius
         if dist < 0:
             return None
-        closest = min(closest, (dist, circle), key=lambda x: x[0])
+        k = (dist, circle)
+        closest = min(closest, k, key=lambda x: x[0])
     max_radius = closest[0]
     return (
         Circle(center, max_radius, closest[1].color)
@@ -79,21 +98,20 @@ def add_circle(
     )
 
 
-pygame.init()
-W, H = pygame.display.Info().current_w, pygame.display.Info().current_h
-screen = pygame.display.set_mode((W, H))
-pygame.display.set_caption("Touching circles")
-clock = pygame.time.Clock()
-FPS = 60
-
 USER_INSTABILITY = 69
-ADD_TIMEOUT, REMOVE_TIMEOUT = 1 / 32, 1 / 6
-MAX_RADIUS = min(W, H) // 3
-Circles = set[Circle]
-circles: Circles = set()
-unstable_circles: Circles = set()
-last_added, last_removed = time.time(), time.time()
-paused = False
+
+
+class Circles(set[Circle]):
+    def __iter__(self):
+        return iter(tuple(super().__iter__()))
+
+
+class State:
+    circles: Circles = Circles()
+    unstable_circles: Circles = Circles()
+    last_added: float = time.time()
+    last_removed = time.time()
+    paused = False
 
 
 def draw_int_circle(center: Pos, radius: float, color: Color, stroke: float = 0):
@@ -106,59 +124,67 @@ def draw_int_circle(center: Pos, radius: float, color: Color, stroke: float = 0)
     pygame.draw.ellipse(screen, color, rect, math.ceil(stroke))
 
 
-def modify_circles():
-    global circles, unstable_circles
-    global last_added, last_removed, paused
+def iteration_modify_circles() -> None:
+    now = time.time()
+    if now - State.last_added > ADD_TIMEOUT:
+        circle = None
+        while not circle:
+            circle = add_circle(
+                State.circles,
+                Pos(random.randint(0, W), random.randint(0, H)),
+                Pos(W, H),
+                MAX_RADIUS,
+            )
+        circle.instability = 1
+        State.unstable_circles.add(circle)
+        State.circles.add(circle)
+        State.last_added += ADD_TIMEOUT
+    if len(State.circles) > 100 and now - State.last_removed > REMOVE_TIMEOUT:
+        stable_circles = tuple(filter(lambda c: c.instability == 0, State.circles))
+        if stable_circles:
+            circle = random.choice(stable_circles)
+            circle.setup_time()
+            circle.instability = -1
+            State.unstable_circles.add(circle)
+        State.last_removed += REMOVE_TIMEOUT
+
+
+def update_unstable_radii() -> None:
+    now = time.time()
+    for circle in State.unstable_circles:
+        if circle.instability == USER_INSTABILITY:
+            circle.render_radius = circle.radius
+            continue
+        stage = min(
+            1,
+            (now - circle.creation_time)
+            / (circle.maturity_time - circle.creation_time),
+        )
+        stage = (stage if circle.instability == 1 else 1 - stage) ** 0.5
+        circle.render_radius = circle.radius * stage
+        if now >= circle.maturity_time:
+            if circle.instability == -1:
+                State.circles.remove(circle)
+            circle.instability = 0
+    State.unstable_circles = Circles(
+        {c for c in State.unstable_circles if c.instability}
+    )
+
+
+def thread_modify_circles():
+    time.sleep(0.1)
 
     while True:
-        now = time.time()
-        if not paused:
-            if now - last_added > ADD_TIMEOUT:
-                circle = None
-                while not circle:
-                    circle = add_circle(
-                        circles,
-                        Pos(random.randint(0, W), random.randint(0, H)),
-                        Pos(W, H),
-                        MAX_RADIUS,
-                    )
-                circle.instability = 1
-                unstable_circles.add(circle)
-                circles.add(circle)
-                last_added += ADD_TIMEOUT
-            if len(circles) > 100 and now - last_removed > REMOVE_TIMEOUT:
-                stable_circles = tuple(filter(lambda c: c.instability == 0, circles))
-                if stable_circles:
-                    circle = random.choice(stable_circles)
-                    circle.setup_time()
-                    circle.instability = -1
-                    unstable_circles.add(circle)
-                last_removed += REMOVE_TIMEOUT
-
-        now = time.time()
-        for circle in unstable_circles:
-            if circle.instability == USER_INSTABILITY:
-                circle.render_radius = circle.radius
-            else:
-                stage = min(
-                    1,
-                    (now - circle.creation_time)
-                    / (circle.maturity_time - circle.creation_time),
-                )
-                stage = (stage if circle.instability == 1 else 1 - stage) ** 0.5
-                circle.render_radius = circle.radius * stage
-                if now >= circle.maturity_time:
-                    if circle.instability == -1:
-                        circles.remove(circle)
-                    circle.instability = 0
-        unstable_circles = {c for c in unstable_circles if c.instability}
-        time.sleep(max(0, min(ADD_TIMEOUT, REMOVE_TIMEOUT) - (time.time() - now)))
+        start_time = time.time()
+        if not State.paused:
+            iteration_modify_circles()
+        update_unstable_radii()
+        time.sleep(
+            max(0, min(ADD_TIMEOUT, REMOVE_TIMEOUT) - (time.time() - start_time))
+        )
 
 
 def pygame_loop():
-    global circles, unstable_circles
-    global last_added, paused
-
     NONE_CIRCLE = Circle(Pos(0, 0), 0)
     user_circle: Circle = NONE_CIRCLE
     while True:
@@ -171,8 +197,8 @@ def pygame_loop():
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 user_circle = Circle(Pos(*event.pos), 0)
                 user_circle.instability = USER_INSTABILITY
-                circles.add(user_circle)
-                unstable_circles.add(user_circle)
+                State.circles.add(user_circle)
+                State.unstable_circles.add(user_circle)
             elif event.type == pygame.MOUSEBUTTONUP:
                 user_circle.instability = 1
                 user_circle.render_radius = user_circle.radius
@@ -180,24 +206,23 @@ def pygame_loop():
                 user_circle = NONE_CIRCLE
             elif event.type == pygame.KEYUP:
                 if event.key == pygame.K_r:
-                    circles = set()
-                    unstable_circles = set()
-                    last_added = time.time()
+                    State.circles.clear()
+                    State.unstable_circles.clear()
+                    State.last_added = time.time()
                 if event.key == pygame.K_p:
-                    paused = not paused
-                    last_added = time.time()
+                    State.paused = not State.paused
+                    State.last_added = time.time()
 
-        screen.fill((200, 220, 250))
-        for circle in tuple(circles):
+        screen.fill(BG_COLOR)
+        for circle in State.circles:
             draw_int_circle(circle.center, circle.render_radius, circle.color)
             draw_int_circle(circle.center, circle.radius, circle.color, 1)
 
         pygame.display.flip()
         clock.tick(FPS)
-        print(clock.get_fps(), len(circles), len(unstable_circles))
+        print(clock.get_fps(), len(State.circles), len(State.unstable_circles))
 
 
 # launch threads
-
-threading.Thread(target=modify_circles, daemon=True).start()
+threading.Thread(target=thread_modify_circles, daemon=True).start()
 pygame_loop()
