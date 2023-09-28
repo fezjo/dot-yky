@@ -12,6 +12,7 @@ You can pause and restart the simulation by pressing `p` and `r` respectively. Y
 
 ![Example](media/example1.png)
 ![Example](media/example2.png)
+![Example](media/example3.png)
 
 ## Instructions
 

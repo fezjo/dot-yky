@@ -9,7 +9,7 @@ import threading
 
 FPS = 60
 SHOW_COMPONENTS = True
-ADD_TIMEOUT, REMOVE_TIMEOUT = 1 / 32, 1 / 6
+ADD_TIMEOUT, REMOVE_TIMEOUT = 1 / 128, 1 / 6
 
 
 pygame.init()
@@ -236,7 +236,9 @@ def pygame_loop():
 
         pygame.display.flip()
         clock.tick(FPS)
-        print(clock.get_fps(), len(State.circles), len(State.unstable_circles))
+        print(
+            round(clock.get_fps(), 2), len(State.circles), len(State.unstable_circles)
+        )
 
 
 # launch threads
