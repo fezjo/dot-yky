@@ -184,6 +184,14 @@ def thread_modify_circles():
         )
 
 
+def find_circle(pos: Pos) -> Circle | None:
+    for circle in State.circles:
+        dist = abs(pos - circle.center)
+        if dist < circle.radius:
+            return circle
+    return None
+
+
 def pygame_loop():
     NONE_CIRCLE = Circle(Pos(0, 0), 0)
     user_circle: Circle = NONE_CIRCLE
@@ -195,15 +203,23 @@ def pygame_loop():
                 pygame.quit()
                 exit()
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                user_circle = Circle(Pos(*event.pos), 0)
-                user_circle.instability = USER_INSTABILITY
-                State.circles.add(user_circle)
-                State.unstable_circles.add(user_circle)
+                if event.button == pygame.BUTTON_LEFT:
+                    user_circle = Circle(Pos(*event.pos), 0)
+                    user_circle.instability = USER_INSTABILITY
+                    State.circles.add(user_circle)
+                    State.unstable_circles.add(user_circle)
             elif event.type == pygame.MOUSEBUTTONUP:
-                user_circle.instability = 1
-                user_circle.render_radius = user_circle.radius
-                user_circle.maturity_time = time.time()
-                user_circle = NONE_CIRCLE
+                if event.button == pygame.BUTTON_LEFT:
+                    user_circle.instability = 1
+                    user_circle.render_radius = user_circle.radius
+                    user_circle.maturity_time = time.time()
+                    user_circle = NONE_CIRCLE
+                elif event.button == pygame.BUTTON_RIGHT:
+                    circle = find_circle(Pos(*event.pos))
+                    if circle is not None:
+                        State.circles.remove(circle)
+                        if circle in State.unstable_circles:
+                            State.unstable_circles.remove(circle)
             elif event.type == pygame.KEYUP:
                 if event.key == pygame.K_r:
                     State.circles.clear()

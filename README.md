@@ -8,7 +8,7 @@ It reminds me of a civilization simulation, where the dots are emerging and disa
 
 It handles around 20k dots and there is large room for optimization.
 
-You can pause and restart the simulation by pressing `p` and `r` respectively.
+You can pause and restart the simulation by pressing `p` and `r` respectively. You can create and remove dots using mouse (left click drag & right click).
 
 ![Example](media/example1.png)
 ![Example](media/example2.png)
