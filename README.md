@@ -18,5 +18,5 @@ You can pause and restart the simulation by pressing `p` and `r` respectively. Y
 
 ```bash
 # install pygame and then simply
-python3 touching_circles.py
+python3 dot_yky.py
 ```
